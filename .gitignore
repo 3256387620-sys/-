@@ -1,31 +1,182 @@
-# OS files
+# 密钥与运行时文件（含敏感信息，禁止入库）
+token.info
+last_run.json
+settings.json
+*.info
+
+# 本地环境变量（含 ECS 密码 / 访问口令，禁止入库；.env.example 保留为模板）
+.env
+.env.*
+!.env.example
+
+# 智能体私有数据（含明文口令笔记，禁止入库）
+.workbuddy/
+
+# 历史临时探测脚本（含 ECS 明文密码，非交付物，禁止入库）
+_trash/
+
+# 含 ECS root 密码的部署脚本，禁止入库
+deploy*.py
+_sync_creds.py
+change_key.py
+explore*.py
+verify*.py
+
+# 华为凭据与运行时产物（含敏感信息，禁止入库）
+hw_credentials.json
+hw_cookie.txt
+hw_cookies.json
+hw_keeper.heartbeat
+hw_keeper.log
+hw_keeper.out.log
+hw_autopush.log
+hw_need_login.flag
+
+# 浏览器持久化 profile：内含登录态 Cookie，一旦入库等于把账号送出去
+hw_profile/
+trae_profile/
+hw_probe_profile/
+doubao_profile/
+lx_profile/
+
+# 抓取/调试产物
+hw_capture.log
+hw_capture.out.log
+hw_netlog.jsonl
+hw_shot.png
+hw_shot.txt
+hw_chunks/
+*_probe*.json
+diag*.txt
+
+# 接口探测/调试产物（非交付物，排查接口时临时生成）
+probe*.py
+_asar/
+node_modules/
+*.html
+config-*.js
+vendor-*.js
+idx.js
+checkin.log
+
+# Python 缓存
+__pycache__/
+*.pyc
+mm_web_token.json
+mm_token.json
+trae_jwt.txt
+trae_device_id.txt
+trae_cookie.txt
+trae_cookie.json
+doubao_cookie.txt
+doubao_cookie.json
+linkai_token.txt
+# 凭据文件的本地备份（形如 xxx_token.txt.bak.20261016），同样含明文凭据，禁止入库
+*.bak.[0-9]*
+# refresh_creds.py pull 生成的整目录备份（内含多平台明文 token）
+cred_backup/
+*.bak.*[0-9]
+# OiiOii 已下线（平台价值低，卡片已移除）；下面两行保留，防止 _removed_oiioii/ 里
+# 遗留的旧凭据被误入库（等同账号密码）
+oiioii_token.txt
+oiioii_session.json
+lx_cookie.txt
+lx_cookie.json
+coze_cookie.txt
+# 即梦 AI 已下线（2026-11-05 移除平台与卡片）；规则保留，防止 _removed_jimeng/ 里归档的旧凭据被误入库
+jimeng_cookie.txt
+# 扣子官方 logo（已 base64 内联进 web_server.py，独立 png 仅本地留档，不入库）
+coze_logo.png
+
+# Qoder 登录态（本机从客户端取出的 access token，禁止入库）
+qoder_token.txt
+qoder_cookie.txt
+qoder_cookie.json
+qoder_profile/
+_qd_auth.json
+_qd_campaigns_dump.json
+# 凭据备份的另一种命名（形如 qoder_token.txt.bak_20261022_090211）
+*.bak_*
+# 豆包中继口令（等同服务器访问口令，禁止入库）
+doubao_relay_key.txt
+# 千帆登录态（明文 token，禁止入库）
+qf_token.txt
+
+# 各平台签到运行时状态（非交付物）
+*_last_run.json
+# 定时签到的当日随机计划（运行态，重启后沿用当次抽签结果）
+schedule_plan.json
+# 华为「当日已签」本地标记（短效会话优化用，运行态）
+hw_today_done.json
+# 派猫猫旅行：浏览器 Cookie（HttpOnly，等同账号密码）与运行时状态，禁止入库
+wb_travel_cookie.txt
+travel_state.json
+
+# Windows 批处理在仓库里必须保持 CRLF（见 .gitattributes），
+# 但本地转换/测试产生的临时文件不必入库
+_t_*.bat
+_t_*.out
+
+# 无头浏览器验证脚本 / 截图（一次性自检产物）
+_verify_*
+# 豆包签名服务运行日志（运行态）
+doubao_sign.log
+# 豆包签到中继标志（运行态，本机服务轮询领取）
+doubao_sign_request.json
+# 豆包「完成任务」中继标志（运行态）
+doubao_sign_request_tasks.json
+# 豆包「今日已签」防漏签状态（运行态）
+doubao_signed_today.json
+# 豆包方案二：服务器侧同步来的登录态 Cookie（等同账号密码，禁止入库）
+doubao_cookies_server.json
+# 豆包方案二：服务器侧浏览器 profile（含登录态，禁止入库）
+doubao_server_profile/
+# 豆包方案二：服务器签名器运行日志（运行态）
+doubao_sign_server.log
+
+# Trae 限流重试持久化状态（运行态，重启后由服务自动恢复）
+trae_retry_state.json
+
+# 华为工具链本地运行产物（日志 / PID 文件 / 解包前端资产，非交付物，禁止入库）
+huawei/hw_watch.log
+huawei/hw_autopush.out.log
+huawei/hw_pids.txt
+huawei/hw_index.js
+
+# Qoder 本机守护运行产物（token/配置/日志/状态，等同账号密码与本机凭据，禁止入库）
+qoder_keeper/qoder_token.txt
+qoder_keeper/config.json
+qoder_keeper/qoder_keeper.log
+qoder_keeper/qoder_keeper.out.log
+qoder_keeper/qoder_state.json
+qoder_local_status.json
+
+# 临时 commit message / 调试脚本（排查接口时临时生成，含密码或非交付物，禁止入库）
+_*.txt
+_*.py
+
+# WorkBuddy 会话令牌自动刷新：运行日志（运行态，非交付物）
+token_sync.log
+# 余额每日快照（运行态数据，由 workbuddy_checkin.py 每日写入）
+balance_history.json
+# 本机智能体工作目录数据（会话日志 / 项目记忆，禁止入库）
+.workbuddy-ai/
+
+
+# 多账号槽位：各平台账号凭据与状态（含敏感令牌，禁止入库）
+accounts/
+# 网页服务运行日志（运行态，非交付物）
+server.log
+
+# ---- 以下为仓库原有通用规则（OS / 编辑器 / 构建产物）----
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Editors
 .vscode/
 .idea/
 *.swp
-
-# Logs
-*.log
-npm-debug.log*
-
-# Dependencies
-node_modules/
-__pycache__/
-*.py[cod]
 .venv/
 venv/
-
-# Env / secrets
-.env
-.env.local
-.env.*.local
-*.pem
-
-# Build output
 dist/
 build/
-*.exe
+*.pem
