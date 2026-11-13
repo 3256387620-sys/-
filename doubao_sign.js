@@ -21,13 +21,12 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 // ============================================================================
-// 【必填】网页签到中心访问口令（对应服务器 WB_ACCESS_KEY）
+// 网页签到中心访问口令（对应服务器 WB_ACCESS_KEY）
 // ----------------------------------------------------------------------------
-// 中继通道用它调用 https://bjzjsf.asia/checkin/api/doubao/*?k=<口令>。
-// 本文件是浏览器/Node 用户脚本，没有构建步骤可注入环境变量，所以只能手填。
-// 请从你自己的 .env（ACCESS_KEY=）里复制真实值到同目录的 doubao_relay_key.txt
-// （该文件已在 .gitignore），或设置环境变量 RELAY_KEY；不要把真实口令提交。
-// 留空 / 保持占位符时，中继轮询会因口令不符被服务器拒绝，其余功能不受影响。
+// 中继通道用它调用 CENTER_BASE + /api/doubao/*?k=<口令>（见下方 CENTER_BASE）。
+// 本机单机部署且未设访问口令时，服务端 _key_ok 恒放行，这里留空即可。
+// 若给签到中心设了口令，请把真实值写入同目录 doubao_relay_key.txt
+// （该文件已在 .gitignore），或设置环境变量 RELAY_KEY；不要把口令提交。
 // ============================================================================
 const path = require('path');
 const RELAY_KEY = (function () {
@@ -44,17 +43,24 @@ const RELAY_KEY = (function () {
 const PROFILE    = path.join(__dirname, 'doubao_profile');
 const COOKIE_TXT = path.join(__dirname, 'doubao_cookie.txt');
 const PORT       = 8791;
+// 签到中心地址：全单机部署时默认指向本机 web_server.py(8765)。
+// 原仓库把作者自己的域名写死在下面三处中继请求里，直接运行会把豆包登录态
+// 推给第三方；这里改为环境变量优先、默认只走本机，绝不默认外发。
+// 若签到中心部署在别的机器，用 DOUBAO_CENTER_URL=https://你的域名 指定。
+const CENTER_BASE = (process.env.DOUBAO_CENTER_URL || 'http://127.0.0.1:8765').replace(/\/+$/, '');
 // 签到必须走豆包电脑版客户端（需带 --remote-debugging-port=9222 启动，已写入 HKCU Run）：
 // 在客户端页面里点「立即签到」。2026-10-31 起脚本化 checkin 一律 710010702，
 // 只有官方客户端 UI 点击能成功。客户端没开时由 ensureDoubaoClient() 自动拉起。
 const CDP_URL    = 'http://127.0.0.1:9222';
+// 客户端装在非标准目录时，用 DOUBAO_EXE 环境变量指定完整路径即可，无需改源码。
 const DOUBAO_EXE_CANDIDATES = [
+  process.env.DOUBAO_EXE || '',
   'D:\\Doubao\\Doubao.exe',
   path.join(process.env.LOCALAPPDATA || '', 'Doubao', 'Doubao.exe'),
   path.join(process.env.ProgramFiles || '', 'Doubao', 'Doubao.exe'),
-];
+].filter(Boolean);
 let _clientStartAt = 0;
-const ORIGIN     = 'https://bjzjsf.asia';
+const ORIGIN     = CENTER_BASE;
 const SCENE      = 'pc_incentive_task_mvp_v3';
 const QP = 'version_code=20800&language=zh&device_platform=pc&doubao_device_platform=pc&aid=497858&real_aid=497858&pkg_type=release_version&samantha_web=0&web_platform=pc&runtime=pc';
 const LOG = path.join(__dirname, 'doubao_sign.log');
@@ -114,7 +120,7 @@ async function uploadCookiesToServer() {
       const sid = (cookies.find(c => c.name === 'sessionid') || {}).value;
       if (sid) fs.writeFileSync(COOKIE_TXT, sid);
     } catch (e) { dlog('[cookie-sync] 写本机 cookie 文件失败(可忽略): ' + e); }
-    const r = await fetch('https://bjzjsf.asia/checkin/api/doubao/upload-cookie?k=' + encodeURIComponent(RELAY_KEY), {
+    const r = await fetch(CENTER_BASE + '/api/doubao/upload-cookie?k=' + encodeURIComponent(RELAY_KEY), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cookies),
@@ -457,8 +463,8 @@ async function getTaskList() {
 
 // ---- HTTP 服务 ----
 const server = http.createServer(async (req, res) => {
-  // CORS：本机签名服务只允许从本机访问，但签到中心网页(https://bjzjsf.asia)从浏览器跨域调用，
-  // 故放行其 Origin；同时兜底回显请求方 Origin，保证本地直连也能用。
+  // CORS：签到中心网页可能从别的 Origin 跨域调用本机签名服务，
+  // 默认放行 CENTER_BASE；同时兜底回显请求方 Origin，保证本地直连也能用。
   const reqOrigin = req.headers.origin || ORIGIN;
   res.setHeader('Access-Control-Allow-Origin', reqOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -546,7 +552,7 @@ function startRelay() {
   // 签到请求轮询
   setInterval(async () => {
     try {
-      const r = await fetch('https://bjzjsf.asia/checkin/api/doubao/poll?k=' + encodeURIComponent(RELAY_KEY), { method: 'GET' });
+      const r = await fetch(CENTER_BASE + '/api/doubao/poll?k=' + encodeURIComponent(RELAY_KEY), { method: 'GET' });
       const j = await r.json();
       if (j && j.ok && j.pending) {
         console.log('[doubao-sign] relay: 收到网页签到请求，执行本机浏览器签名...');
@@ -558,7 +564,7 @@ function startRelay() {
   // 完成任务请求轮询
   setInterval(async () => {
     try {
-      const r = await fetch('https://bjzjsf.asia/checkin/api/doubao/poll-tasks?k=' + encodeURIComponent(RELAY_KEY), { method: 'GET' });
+      const r = await fetch(CENTER_BASE + '/api/doubao/poll-tasks?k=' + encodeURIComponent(RELAY_KEY), { method: 'GET' });
       const j = await r.json();
       if (j && j.ok && j.pending) {
         console.log('[doubao-sign] relay: 收到网页「完成任务」请求，执行本机浏览器领取...');

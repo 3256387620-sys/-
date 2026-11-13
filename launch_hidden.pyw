@@ -16,5 +16,10 @@ _log = open(os.path.join(BASE, "server.log"), "a", encoding="utf-8", errors="rep
 sys.stdout = _log
 sys.stderr = _log
 
+# 全单机部署：豆包签名服务与本服务同机，指向 127.0.0.1:8791。
+# 用 setdefault 保证显式设置的环境变量优先（远程部署时可覆盖）。
+os.environ.setdefault("DOUBAO_SIGNER_URL", "http://127.0.0.1:8791")
+print("[launcher] DOUBAO_SIGNER_URL=%s" % os.environ["DOUBAO_SIGNER_URL"], flush=True)
+
 sys.argv = [os.path.join(BASE, "web_server.py")]
 runpy.run_path(sys.argv[0], run_name="__main__")

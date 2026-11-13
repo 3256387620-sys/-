@@ -7,7 +7,12 @@
 //
 // Usage: double-click refresh_qoder_cookie.bat, log in to qoder.com in the
 // popped-up Edge window. The script validates the cookie against the real
-// API and uploads it to the server (push_qoder_cookie.py).
+// API, writes qoder_cookie.txt locally, then closes the window and exits.
+//
+// 本机部署（2026-11-13 改造）：原脚本校验成功后会调用 push_qoder_cookie.py，
+// 把登录态 SFTP 推到原作者的 112 服务器 /opt/wb-checkin/。本机签到中心的
+// _qd_cookie() 是「每次现读盘不缓存」，cookie 落盘即生效，完全不需要外发。
+// 现默认走本机模式；确需远程部署时显式设 QODER_PUSH_REMOTE=1 才恢复旧行为。
 const { chromium } = require('./runtime_env').loadPlaywright();
 const fs = require('fs');
 const path = require('path');
@@ -97,7 +102,16 @@ async function check(page, header, csrf) {
 function push(ctx) {
   if (pushed) return;
   pushed = true;
-  console.log('[push] cookie valid, uploading to server ...');
+  // 默认本机模式：cookie 已由 saveCookies() 写入同目录，web_server 现读盘即生效。
+  // 不调用 push_qoder_cookie.py，避免把 qoder.com 登录态外发到第三方服务器。
+  if (process.env.QODER_PUSH_REMOTE !== '1') {
+    console.log('[done] cookie 已写入 qoder_cookie.txt（本机模式，未向外推送）');
+    console.log('[done] 签到中心现读盘生效，刷新页面即可看到「将过期积分」');
+    (async () => { try { await ctx.close(); } catch (e) {} })();
+    setTimeout(() => process.exit(0), 1200);
+    return;
+  }
+  console.log('[push] QODER_PUSH_REMOTE=1，上传 cookie 到远程服务器 ...');
   execFile(PY, ['push_qoder_cookie.py'], { cwd: __dirname }, async (err, stdout, stderr) => {
     if (stdout) console.log(stdout);
     if (stderr) console.log(stderr);
@@ -148,7 +162,16 @@ function push(ctx) {
         }
       }
     } catch (e) {
-      console.log('[tick] ' + e.message);
+      const msg = String((e && e.message) || e);
+      // 用户关掉 Edge 窗口后不要空转刷错误日志：直接收尾退出。
+      // 需要重新登录时再运行一次 refresh_qoder_cookie.bat / node qoder_capture.js 即可。
+      if (/has been closed|Target closed|browser has disconnected/i.test(msg)) {
+        clearInterval(timer);
+        console.log('[exit] Edge 窗口已关闭，采集结束；需要重新登录时再运行一次即可。');
+        setTimeout(() => process.exit(3), 800);
+        return;
+      }
+      console.log('[tick] ' + msg);
     }
     if (Date.now() > deadline) {
       clearInterval(timer);
